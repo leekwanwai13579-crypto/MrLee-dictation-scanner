@@ -262,19 +262,19 @@ creativity</textarea>
       return alignment;
     }
 
+    // Thoroughly strips OCR label tags like "(Spelling mistake)" and "[... missing]"
     function cleanArtifacts(text) {
+      if (!text) return "";
       return text
-        .replace(/\([^)]*mistake[^)]*\)/gi, '')
+        .replace(/\([^\)]*mistake[^\)]*\)/gi, '')
         .replace(/\[[^\]]*missing\]/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
     }
 
     function gradeDictation(rawText) {
-      const cleanedRawText = cleanArtifacts(rawText);
-      const lines = cleanedRawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-      // Extract raw sections
       const partBStartIndex = lines.findIndex(l => l.toLowerCase().includes('part b'));
       const partCStartIndex = lines.findIndex(l => l.toLowerCase().includes('part c'));
 
@@ -308,15 +308,11 @@ creativity</textarea>
         const masterClean = masterWord.toLowerCase();
         const scannedClean = scannedWord.toLowerCase();
 
-        // Check exact match for score calculation
-        if (masterClean && cleanedRawText.toLowerCase().includes(masterClean)) {
+        if (masterClean && scannedClean === masterClean) {
           partAScore += 5;
-        }
-
-        // Inline rendering: check exact line word against answer key
-        if (scannedClean === masterClean && masterClean !== '') {
           markedPartALines.push(prefix + scannedWord);
         } else {
+          // Highlight misspelling in red
           markedPartALines.push(prefix + `<span style="color:#dc2626; font-weight:bold;">${scannedWord || '[Missing]'}</span>`);
         }
       });
@@ -336,15 +332,11 @@ creativity</textarea>
         const masterClean = masterWord.toLowerCase();
         const scannedClean = scannedWord.toLowerCase();
 
-        // Check exact match for score calculation
-        if (masterClean && cleanedRawText.toLowerCase().includes(masterClean)) {
+        if (masterClean && scannedClean === masterClean) {
           partCScore += 2;
-        }
-
-        // Inline rendering: check exact line word against answer key
-        if (scannedClean === masterClean && masterClean !== '') {
           markedPartCLines.push(prefix + scannedWord);
         } else {
+          // Highlight misspelling in red
           markedPartCLines.push(prefix + `<span style="color:#dc2626; font-weight:bold;">${scannedWord || '[Missing]'}</span>`);
         }
       });
@@ -437,7 +429,7 @@ creativity</textarea>
 
       const totalScore = partAScore + partBScore + partCScore;
 
-      // Update Screen
+      // Update Screen Scores
       document.getElementById('totalScore').innerText = `Total Score: ${totalScore} / 100 (+10 Extra)`;
       document.getElementById('partAScore').innerText = `${partAScore} / 40`;
       document.getElementById('partBScore').innerText = `${partBScore} / 60`;
