@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mr Lee HK Dictation Scanner</title>
+  <title>Mr Lee HK Dictation Scanner AI</title>
   <style>
     :root {
       --primary: #2563eb;
@@ -52,7 +52,7 @@
       font-size: 0.9em;
     }
 
-    textarea, select, button {
+    textarea, input, button {
       width: 100%;
       padding: 8px 12px;
       border: 1px solid var(--border);
@@ -132,15 +132,20 @@
 </head>
 <body>
 
-  <h1 style="text-align: center;">📝 Mr Lee HK Dictation Scanner</h1>
+  <h1 style="text-align: center;">📝 Mr Lee HK Dictation Scanner AI</h1>
 
   <div class="container">
-    <!-- LEFT PANEL: Settings -->
+    <!-- LEFT PANEL: Settings & Key -->
     <div class="sidebar">
       <div class="card">
-        <h2>⚙️ Master Keys</h2>
-
-        <label for="partAKey">Part A (40 Marks - 8 Items, 5 marks each)</label>
+        <h2>⚙️ Configuration</h2>
+        
+        <label for="apiKey">Gemini API Key</label>
+        <input type="password" id="apiKey" placeholder="Paste your API key here">
+        <small><a href="https://aistudio.google.com/" target="_blank">Get free API key</a></small>
+        
+        <h3 style="margin-top: 20px;">Master Keys</h3>
+        <label for="partAKey">Part A (40 Marks)</label>
         <textarea id="partAKey" rows="5">environment
 technology
 community
@@ -150,12 +155,12 @@ opportunity
 development
 responsibility</textarea>
 
-        <label for="partBKey">Part B Text (3 Sentences - 20 marks each)</label>
+        <label for="partBKey">Part B Text (60 Marks)</label>
         <textarea id="partBKey" rows="4">Hong Kong is a lively and vibrant financial hub in Asia.
 Students must work hard every day to achieve their dreams.
 Practice makes perfect when learning a foreign language.</textarea>
 
-        <label for="partCKey">Part C Extra (10 Marks - 5 Items, 2 marks each)</label>
+        <label for="partCKey">Part C Extra (10 Marks)</label>
         <textarea id="partCKey" rows="4">advantage
 challenge
 success
@@ -174,7 +179,7 @@ creativity</textarea>
       </div>
 
       <div class="loading" id="loadingState">
-        🧠 Analyzing handwriting and categorizing errors using AI...
+        🧠 Reading handwriting and categorizing errors using AI...
       </div>
 
       <div class="card" id="resultsCard" style="display: none;">
@@ -203,9 +208,6 @@ creativity</textarea>
   </div>
 
   <script>
-    // HARDCODED API KEY (Paste your Gemini Key between the quotes below)
-    const HARDCODED_GEMINI_KEY = "YOUR_GEMINI_API_KEY_HERE";
-
     const imageInput = document.getElementById('imageInput');
     const imagePreview = document.getElementById('imagePreview');
     const scanBtn = document.getElementById('scanBtn');
@@ -228,13 +230,15 @@ creativity</textarea>
     });
 
     scanBtn.addEventListener('click', async function() {
-      if (!base64Image) {
-        alert('Please upload an image first.');
+      const apiKey = document.getElementById('apiKey').value.trim();
+
+      if (!apiKey) {
+        alert('Please enter your Gemini API key in the configuration panel.');
         return;
       }
 
-      if (HARDCODED_GEMINI_KEY === "YOUR_GEMINI_API_KEY_HERE" || !HARDCODED_GEMINI_KEY) {
-        alert('Please open index.html and paste your Gemini API key inside HARDCODED_GEMINI_KEY.');
+      if (!base64Image) {
+        alert('Please upload an image first.');
         return;
       }
 
@@ -243,8 +247,8 @@ creativity</textarea>
       resultsCard.style.display = 'none';
 
       const prompt = `
-You are an expert English teacher marking a student's handwritten dictation test.
-Compare the uploaded image against these Master Answer Keys:
+You are an expert English teacher marking a student's handwritten dictation test image.
+Compare the student image against these target keys:
 
 Part A Target Words:
 ${document.getElementById('partAKey').value}
@@ -255,26 +259,30 @@ ${document.getElementById('partBKey').value}
 Part C Target Words:
 ${document.getElementById('partCKey').value}
 
-RULES FOR MARKING:
-1. Retain what the student ACTUALLY wrote in the image.
-2. If a word/letter/punctuation is wrong, cross out what the student wrote using <s style="color:red; font-weight:bold;">student_error</s> followed by <b style="color:green;">(correct_word)</b> and add the error category in brackets: [Spelling], [Capitalization], or [Punctuation].
-Example: <s style="color:red;">tecnology</s> <b style="color:green;">(technology)</b> [Spelling]
-Example: <s style="color:red;">hong kong</s> <b style="color:green;">(Hong Kong)</b> [Capitalization]
-Example: Asia <s style="color:red;">,</s> <b style="color:green;">(.)</b> [Punctuation]
-3. If a word is completely missing, write: <s style="color:red;">[Missing]</s> <b style="color:green;">(target_word)</b>
+STRICT MARKING INSTRUCTIONS:
+1. Identify what the student ACTUALLY wrote in the image.
+2. DO NOT use generic placeholders like [Missing/Misspelled] or [?].
+3. For any error (misspelled word, bad capitalization, or wrong punctuation), cross out what the student wrote using:
+   <s style="color:red; font-weight:bold;">student_actual_mistake</s> <b style="color:green;">(correct_word)</b> [Error_Category]
+   Category MUST be one of: [Spelling], [Capitalization], or [Punctuation].
+   Example 1: <s style="color:red; font-weight:bold;">tecnology</s> <b style="color:green;">(technology)</b> [Spelling]
+   Example 2: <s style="color:red; font-weight:bold;">hong kong</s> <b style="color:green;">(Hong Kong)</b> [Capitalization]
+   Example 3: Asia <s style="color:red; font-weight:bold;">,</s> <b style="color:green;">(.)</b> [Punctuation]
+4. If a word is completely missing, write:
+   <s style="color:red; font-weight:bold;">[Missing]</s> <b style="color:green;">(correct_word)</b>
 
-Return ONLY a valid JSON object matching this exact structure (no markdown formatting, no code blocks):
+Return ONLY raw JSON in this format without markdown wrappers:
 {
-  "partAScore": 35,
-  "partBScore": 52,
-  "partCScore": 10,
-  "totalScore": 97,
-  "markedHTML": "<h4>Part A (Vocab):</h4><br>1. environment<br>2. <s style=\"color:red;\">tecnology</s> <b style=\"color:green;\">(technology)</b> [Spelling]...<br><br><h4>Part B (Sentences):</h4><br>1. <s style=\"color:red;\">hong kong</s> <b style=\"color:green;\">(Hong Kong)</b> [Capitalization] is a lively...<br><br><h4>Part C (Extra):</h4><br>1. advantage..."
+  "partAScore": 30,
+  "partBScore": 60,
+  "partCScore": 6,
+  "totalScore": 96,
+  "markedHTML": "<h4>Part A (Vocab):</h4>1. environment<br>2. <s style=\"color:red; font-weight:bold;\">tecnology</s> <b style=\"color:green;\">(technology)</b> [Spelling]<br>3. community..."
 }
 `;
 
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${HARDCODED_GEMINI_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -288,6 +296,11 @@ Return ONLY a valid JSON object matching this exact structure (no markdown forma
         });
 
         const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error.message);
+        }
+
         const rawText = data.candidates[0].content.parts[0].text;
         const cleanJSON = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         const result = JSON.parse(cleanJSON);
@@ -301,7 +314,7 @@ Return ONLY a valid JSON object matching this exact structure (no markdown forma
         resultsCard.style.display = 'block';
 
       } catch (err) {
-        alert("Error marking dictation: " + err.message);
+        alert("API Error: " + err.message);
       } finally {
         scanBtn.disabled = false;
         loadingState.style.display = 'none';
