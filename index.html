@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> Mr Lee Dictation Auto-Marker</title>
+  <title>Band 3 HK Dictation Auto-Marker (Offline Mode)</title>
+  <!-- Load Tesseract.js directly via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
       --primary: #2563eb;
@@ -42,110 +44,32 @@
       margin-bottom: 20px;
     }
 
-    h1, h2, h3 { margin-top: 0; }
-    
-    label {
-      font-weight: 600;
-      display: block;
-      margin-top: 12px;
-      margin-bottom: 4px;
-      font-size: 0.9em;
-    }
+    label { font-weight: 600; display: block; margin-top: 12px; font-size: 0.9em; }
+    textarea, select, button { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
+    button { background-color: var(--primary); color: white; font-weight: 600; cursor: pointer; margin-top: 16px; padding: 12px; border: none; }
+    button:disabled { background-color: #94a3b8; }
 
-    input, textarea, select, button {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      box-sizing: border-box;
-      font-family: inherit;
-    }
-
-    textarea { resize: vertical; }
-
-    button {
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 16px;
-      padding: 12px;
-    }
-
-    button:hover { opacity: 0.9; }
-    button:disabled { background-color: #94a3b8; cursor: not-allowed; }
-
-    .score-badge {
-      display: inline-block;
-      padding: 8px 16px;
-      background: #dbeafe;
-      color: #1e40af;
-      font-weight: bold;
-      font-size: 1.2em;
-      border-radius: 6px;
-      margin-bottom: 12px;
-    }
-
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .metric-box {
-      background: #f1f5f9;
-      padding: 12px;
-      border-radius: 6px;
-      text-align: center;
-    }
-
+    .score-badge { display: inline-block; padding: 8px 16px; background: #dbeafe; color: #1e40af; font-weight: bold; font-size: 1.2em; border-radius: 6px; margin-bottom: 12px; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .metric-box { background: #f1f5f9; padding: 12px; border-radius: 6px; text-align: center; }
     .metric-box div:first-child { font-size: 0.8em; color: #64748b; }
     .metric-box div:last-child { font-size: 1.2em; font-weight: bold; }
-
-    #imagePreview {
-      max-width: 100%;
-      max-height: 300px;
-      object-fit: contain;
-      border-radius: 6px;
-      margin-top: 10px;
-      display: none;
-    }
-
-    .error-log {
-      background: #fff1f2;
-      border-left: 4px solid #f43f5e;
-      padding: 10px 14px;
-      margin-top: 10px;
-      border-radius: 0 6px 6px 0;
-    }
-
-    .loading {
-      display: none;
-      text-align: center;
-      padding: 20px;
-      font-weight: bold;
-      color: var(--primary);
-    }
+    #imagePreview { max-width: 100%; max-height: 250px; object-fit: contain; margin-top: 10px; display: none; }
+    .error-log { background: #fff1f2; border-left: 4px solid #f43f5e; padding: 8px 12px; margin-top: 8px; border-radius: 0 6px 6px 0; }
+    .loading { display: none; text-align: center; padding: 20px; font-weight: bold; color: var(--primary); }
   </style>
 </head>
 <body>
 
-  <h1 style="text-align: center;">📝 Mr Lee HK Dictation Scanner</h1>
+  <h1 style="text-align: center;">📝 Band 3 HK Dictation Auto-Marker</h1>
 
   <div class="container">
-    <!-- LEFT PANEL: Settings & Master Keys -->
     <div class="sidebar">
       <div class="card">
-        <h2>🔑 Configuration</h2>
-        <label for="apiKey">Gemini API Key</label>
-        <input type="password" id="apiKey" placeholder="Paste your API key here">
-        <small><a href="https://aistudio.google.com/" target="_blank">Get free API key</a></small>
+        <h2>⚙️ Dictation Setup</h2>
+        <p style="color: green; font-size: 0.85em;"><b>Status:</b> No API key required (Runs on-device)</p>
 
-        <h3>Master Keys</h3>
-        
-        <label for="partAKey">Part A (40 Marks - 8 Items, 5 marks each)</label>
+        <label>Part A Master (40 Marks - 8 Items)</label>
         <textarea id="partAKey" rows="5">environment
 technology
 community
@@ -155,18 +79,17 @@ opportunity
 development
 responsibility</textarea>
 
-        <label for="partBMode">Part B Structure</label>
+        <label>Part B Structure</label>
         <select id="partBMode">
-          <option value="3 Sentences (20 marks each)">3 Sentences (20 marks each)</option>
-          <option value="2 Paragraphs (30 marks each)">2 Paragraphs (30 marks each)</option>
+          <option value="sentences">3 Sentences (20 marks each)</option>
         </select>
 
-        <label for="partBKey">Part B Text</label>
-        <textarea id="partBKey" rows="5">Hong Kong is a lively and vibrant financial hub in Asia.
+        <label>Part B Master Text</label>
+        <textarea id="partBKey" rows="4">Hong Kong is a lively and vibrant financial hub in Asia.
 Students must work hard every day to achieve their dreams.
 Practice makes perfect when learning a foreign language.</textarea>
 
-        <label for="partCKey">Part C Extra (10 Marks - 5 Items, 2 marks each)</label>
+        <label>Part C Extra Master (10 Marks - 5 Items)</label>
         <textarea id="partCKey" rows="4">advantage
 challenge
 success
@@ -175,17 +98,17 @@ creativity</textarea>
       </div>
     </div>
 
-    <!-- RIGHT PANEL: Upload & Marking Output -->
     <div class="main-content">
       <div class="card">
-        <h2>📷 Upload Student Dictation</h2>
+        <h2>📷 Upload Student Dictation Sheet</h2>
         <input type="file" id="imageInput" accept="image/*">
-        <img id="imagePreview" alt="Dictation Preview">
+        <img id="imagePreview" alt="Preview">
         <button id="scanBtn">🚀 Mark Dictation Now</button>
       </div>
 
       <div class="loading" id="loadingState">
-        ⏳ Reading handwriting and calculating HK penalties...
+        ⏳ Processing handwriting directly in browser... <br>
+        <small id="progressText">0%</small>
       </div>
 
       <div class="card" id="resultsCard" style="display: none;">
@@ -193,28 +116,16 @@ creativity</textarea>
         <div class="score-badge" id="totalScore">Total Score: -- / 100</div>
 
         <div class="metrics-grid">
-          <div class="metric-box">
-            <div>Part A (Vocab)</div>
-            <div id="partAScore">-- / 40</div>
-          </div>
-          <div class="metric-box">
-            <div>Part B (Passage)</div>
-            <div id="partBScore">-- / 60</div>
-          </div>
-          <div class="metric-box">
-            <div>Part C (Extra)</div>
-            <div id="partCScore">-- / 10</div>
-          </div>
+          <div class="metric-box"><div>Part A (Vocab)</div><div id="partAScore">-- / 40</div></div>
+          <div class="metric-box"><div>Part B (Passage)</div><div id="partBScore">-- / 60</div></div>
+          <div class="metric-box"><div>Part C (Extra)</div><div id="partCScore">-- / 10</div></div>
         </div>
 
-        <h3>🔍 Part B Error Breakdown</h3>
+        <h3>🔍 Part B Penalties & Errors</h3>
         <div id="errorDetails"></div>
 
-        <h3>💬 Teacher Feedback</h3>
-        <p id="teacherFeedback" style="font-style: italic; background: #f8fafc; padding: 10px; border-radius: 6px;"></p>
-
-        <h3>📝 AI Transcription</h3>
-        <pre id="transcriptionOutput" style="background: #f1f5f9; padding: 10px; border-radius: 6px; overflow-x: auto;"></pre>
+        <h3>📝 OCR Scanned Text</h3>
+        <pre id="transcriptionOutput" style="background: #f1f5f9; padding: 10px; border-radius: 6px; white-space: pre-wrap;"></pre>
       </div>
     </div>
   </div>
@@ -224,130 +135,137 @@ creativity</textarea>
     const imagePreview = document.getElementById('imagePreview');
     const scanBtn = document.getElementById('scanBtn');
     const loadingState = document.getElementById('loadingState');
+    const progressText = document.getElementById('progressText');
     const resultsCard = document.getElementById('resultsCard');
 
-    let base64Image = "";
+    let selectedFile = null;
 
-    // Handle image file selection
     imageInput.addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (file) {
+      selectedFile = e.target.files[0];
+      if (selectedFile) {
         const reader = new FileReader();
         reader.onload = function(evt) {
           imagePreview.src = evt.target.result;
           imagePreview.style.display = 'block';
-          base64Image = evt.target.result.split(',')[1];
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(selectedFile);
       }
     });
 
-    // Handle API submission
     scanBtn.addEventListener('click', async function() {
-      const apiKey = document.getElementById('apiKey').value.trim();
-      if (!apiKey) {
-        alert('Please enter your Gemini API key in the configuration panel.');
-        return;
-      }
-      if (!base64Image) {
-        alert('Please upload a dictation image first.');
+      if (!selectedFile) {
+        alert('Please select or take a photo of a dictation sheet first.');
         return;
       }
 
-      // UI state update
       scanBtn.disabled = true;
       loadingState.style.display = 'block';
       resultsCard.style.display = 'none';
 
-      const prompt = `
-        You are an English teacher in a Hong Kong secondary school.
-        Transcribe the handwritten dictation image and mark it against this Master Key:
-
-        Part A Master:
-        ${document.getElementById('partAKey').value}
-
-        Part B Master (${document.getElementById('partBMode').value}):
-        ${document.getElementById('partBKey').value}
-
-        Part C Extra Master:
-        ${document.getElementById('partCKey').value}
-
-        EXACT HONG KONG MARKING RULES:
-        1. PART A (40 Marks): 8 items, 5 marks each. All-or-nothing per item. Ignore capitalization (case-insensitive).
-        2. PART B (60 Marks): Structure = ${document.getElementById('partBMode').value}.
-           - Deduct 4 marks per spelling error.
-           - Deduct 1 mark per missing/incorrect punctuation or capitalization error.
-           - Minimum score per sentence/paragraph is 0.
-        3. PART C EXTRA (10 Marks): 5 items, 2 marks each. All-or-nothing per item. Ignore capitalization.
-
-        Return ONLY a JSON object (no markdown, no backticks) strictly adhering to this schema:
-        {
-          "transcription": {
-            "part_a": ["word1", "word2"],
-            "part_b": ["sentence1", "sentence2"],
-            "part_c": ["word1", "word2"]
-          },
-          "part_a_score": 35,
-          "part_b_score": 48,
-          "part_c_score": 8,
-          "total_score": 91,
-          "part_b_deductions_detail": ["Sentence 1: -4 (spelling 'libely'), -1 (capital 'hong')"],
-          "feedback_comments": "Constructive comment for a Band 3 student."
-        }
-      `;
-
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: prompt },
-                { inline_data: { mime_type: "image/jpeg", data: base64Image } }
-              ]
-            }]
-          })
+        // Run OCR Engine inside the browser
+        const worker = await Tesseract.createWorker('eng');
+        worker.setParameters({
+          tessjs_create_pdf: '0',
         });
 
-        const data = await response.json();
-        let rawText = data.candidates[0].content.parts[0].text;
-        
-        // Clean markdown backticks if AI returns them
-        rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const result = JSON.parse(rawText);
+        const ret = await worker.recognize(selectedFile);
+        const extractedText = ret.data.text;
+        await worker.terminate();
 
-        // Display results
-        document.getElementById('totalScore').innerText = `Total Score: ${result.total_score} / 100 (+10 Extra)`;
-        document.getElementById('partAScore').innerText = `${result.part_a_score} / 40`;
-        document.getElementById('partBScore').innerText = `${result.part_b_score} / 60`;
-        document.getElementById('partCScore').innerText = `${result.part_c_score} / 10`;
-
-        const errorDiv = document.getElementById('errorDetails');
-        errorDiv.innerHTML = '';
-        if (result.part_b_deductions_detail && result.part_b_deductions_detail.length > 0) {
-          result.part_b_deductions_detail.forEach(err => {
-            const p = document.createElement('div');
-            p.className = 'error-log';
-            p.innerText = err;
-            errorDiv.appendChild(p);
-          });
-        } else {
-          errorDiv.innerHTML = '<p style="color: green;">No mistakes found in Part B!</p>';
-        }
-
-        document.getElementById('teacherFeedback').innerText = result.feedback_comments || "Good effort!";
-        document.getElementById('transcriptionOutput').innerText = JSON.stringify(result.transcription, null, 2);
-
-        resultsCard.style.display = 'block';
+        // Grade extracted text using JS rule engine
+        gradeDictation(extractedText);
 
       } catch (err) {
-        alert("Error processing image: " + err.message);
+        alert("OCR error: " + err.message);
       } finally {
         scanBtn.disabled = false;
         loadingState.style.display = 'none';
       }
     });
+
+    function gradeDictation(rawText) {
+      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      // Part A Rules: 8 items, 5 marks each (Case-insensitive)
+      const partAMaster = document.getElementById('partAKey').value.split('\n').map(s => s.trim().toLowerCase());
+      let partAScore = 0;
+      partAMaster.forEach((word, idx) => {
+        if (rawText.toLowerCase().includes(word) && word.length > 0) {
+          partAScore += 5;
+        }
+      });
+      if (partAScore > 40) partAScore = 40;
+
+      // Part C Rules: 5 items, 2 marks each (Case-insensitive)
+      const partCMaster = document.getElementById('partCKey').value.split('\n').map(s => s.trim().toLowerCase());
+      let partCScore = 0;
+      partCMaster.forEach((word) => {
+        if (rawText.toLowerCase().includes(word) && word.length > 0) {
+          partCScore += 2;
+        }
+      });
+      if (partCScore > 10) partCScore = 10;
+
+      // Part B Rules: 3 Sentences (20 marks each)
+      const partBMaster = document.getElementById('partBKey').value.split('\n').map(s => s.trim());
+      let partBScore = 0;
+      let errorDetails = [];
+
+      partBMaster.forEach((masterSentence, idx) => {
+        if (!masterSentence) return;
+        let blockScore = 20;
+        let sentenceErrors = [];
+
+        // Check if sentence exists in text roughly
+        const masterWords = masterSentence.split(' ');
+        let missingWords = 0;
+
+        masterWords.forEach(w => {
+          const cleanWord = w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+          if (!rawText.includes(cleanWord)) {
+            missingWords++;
+          }
+        });
+
+        if (missingWords > 0) {
+          const spellingDeduction = missingWords * 4;
+          blockScore -= spellingDeduction;
+          sentenceErrors.push(`Sentence ${idx + 1}: -${spellingDeduction} marks for missing/misspelled words.`);
+        }
+
+        if (blockScore < 0) blockScore = 0;
+        partBScore += blockScore;
+
+        if (sentenceErrors.length > 0) {
+          errorDetails = errorDetails.concat(sentenceErrors);
+        }
+      });
+
+      const totalScore = partAScore + partBScore + partCScore;
+
+      // Output Results
+      document.getElementById('totalScore').innerText = `Total Score: ${totalScore} / 100 (+10 Extra)`;
+      document.getElementById('partAScore').innerText = `${partAScore} / 40`;
+      document.getElementById('partBScore').innerText = `${partBScore} / 60`;
+      document.getElementById('partCScore').innerText = `${partCScore} / 10`;
+
+      const errorDiv = document.getElementById('errorDetails');
+      errorDiv.innerHTML = '';
+      if (errorDetails.length > 0) {
+        errorDetails.forEach(err => {
+          const p = document.createElement('div');
+          p.className = 'error-log';
+          p.innerText = err;
+          errorDiv.appendChild(p);
+        });
+      } else {
+        errorDiv.innerHTML = '<p style="color: green;">No major word errors detected!</p>';
+      }
+
+      document.getElementById('transcriptionOutput').innerText = rawText || "No readable text found.";
+      resultsCard.style.display = 'block';
+    }
   </script>
 </body>
 </html>
