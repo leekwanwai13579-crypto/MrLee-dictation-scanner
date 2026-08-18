@@ -197,7 +197,6 @@ creativity</textarea>
       return match ? match.join('') : '';
     }
 
-    // Levenshtein distance helper to measure token similarity
     function levDist(a, b) {
       const m = [];
       for (let i = 0; i <= a.length; i++) {
@@ -216,7 +215,6 @@ creativity</textarea>
       return m[a.length][b.length];
     }
 
-    // Dynamic sequence alignment for missing word resynchronization
     function alignTokens(masterTokens, scannedTokens) {
       const n = masterTokens.length;
       const m = scannedTokens.length;
@@ -232,14 +230,13 @@ creativity</textarea>
           const matchCost = mClean === sClean ? 0 : levDist(mClean, sClean);
 
           dp[i][j] = Math.min(
-            dp[i - 1][j - 1] + matchCost, // Match or Substitute
-            dp[i - 1][j] + 4,             // Insertion (Missing word in scanned text)
-            dp[i][j - 1] + 4              // Deletion (Extra scanned word)
+            dp[i - 1][j - 1] + matchCost,
+            dp[i - 1][j] + 4,
+            dp[i][j - 1] + 4
           );
         }
       }
 
-      // Backtrack to assemble aligned sequence
       let i = n, j = m;
       const alignment = [];
       while (i > 0 || j > 0) {
@@ -255,24 +252,34 @@ creativity</textarea>
           }
         }
         if (i > 0 && (j === 0 || dp[i][j] === dp[i - 1][j] + 4)) {
-          alignment.unshift({ master: masterTokens[i - 1], scanned: null }); // Missing word
+          alignment.unshift({ master: masterTokens[i - 1], scanned: null });
           i--;
         } else {
-          alignment.unshift({ master: null, scanned: scannedTokens[j - 1] }); // Extra word
+          alignment.unshift({ master: null, scanned: scannedTokens[j - 1] });
           j--;
         }
       }
       return alignment;
     }
 
+    // Helper function to clean text from existing image label artifacts
+    function cleanArtifacts(text) {
+      return text
+        .replace(/\([^)]*mistake[^)]*\)/gi, '')
+        .replace(/\[[^\]]*missing\]/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     function gradeDictation(rawText) {
-      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const cleanedRawText = cleanArtifacts(rawText);
+      const lines = cleanedRawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
       // Part A Logic (40 Marks)
       const partAMaster = document.getElementById('partAKey').value.split('\n').map(s => s.trim().toLowerCase());
       let partAScore = 0;
       partAMaster.forEach((word) => {
-        if (word && rawText.toLowerCase().includes(word)) {
+        if (word && cleanedRawText.toLowerCase().includes(word)) {
           partAScore += 5;
         }
       });
@@ -282,7 +289,7 @@ creativity</textarea>
       const partCMaster = document.getElementById('partCKey').value.split('\n').map(s => s.trim().toLowerCase());
       let partCScore = 0;
       partCMaster.forEach((word) => {
-        if (word && rawText.toLowerCase().includes(word)) {
+        if (word && cleanedRawText.toLowerCase().includes(word)) {
           partCScore += 2;
         }
       });
@@ -310,8 +317,7 @@ creativity</textarea>
         let sentenceErrors = [];
         let markedTokens = [];
 
-        let scannedSentence = partBLines[idx] || "";
-        scannedSentence = scannedSentence.replace(/\([^)]*mistake[^)]*\)/gi, '');
+        let scannedSentence = cleanArtifacts(partBLines[idx] || "");
         const linePrefixMatch = scannedSentence.match(/^(\d+[\.\)]\s*)/);
         const linePrefix = linePrefixMatch ? linePrefixMatch[1] : `${idx + 1}. `;
         scannedSentence = scannedSentence.replace(/^\d+[\.\)]\s*/, '');
@@ -323,16 +329,16 @@ creativity</textarea>
 
         alignment.forEach(pair => {
           if (!pair.scanned) {
-            // Missing word -> Blue text with bracket
+            // Missing word -> Blue color with brackets, NO "missing" text label
             const masterClean = pair.master.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
             blockScore -= 4;
             sentenceErrors.push(`Sentence ${idx + 1}: Missing word "${masterClean}" (-4 Spelling)`);
-            markedTokens.push(`<span style="color:#2563eb; font-weight:bold;">[${masterClean} missing]</span>`);
+            markedTokens.push(`<span style="color:#2563eb; font-weight:bold;">[${masterClean}]</span>`);
             return;
           }
 
           if (!pair.master) {
-            // Extra word written by student -> Red text
+            // Extra word written by student -> Red color
             blockScore -= 4;
             sentenceErrors.push(`Sentence ${idx + 1}: Unexpected extra word "${pair.scanned}" (-4 Spelling)`);
             markedTokens.push(`<span style="color:#dc2626; font-weight:bold;">${pair.scanned}</span>`);
@@ -371,10 +377,12 @@ creativity</textarea>
             sentenceErrors.push(`Sentence ${idx + 1}: Punctuation error after "${scannedClean}" (${punctDesc}, expected "${masterPunct}") (-1 Punctuation)`);
           }
 
-          // Style output text based on error type
+          // Format output according to specifications without adding text labels
           if (hasSpellingError) {
+            // Spelling mistake -> Red color
             markedTokens.push(`<span style="color:#dc2626; font-weight:bold;">${pair.scanned}</span>`);
           } else if (hasCapError || hasPunctError) {
+            // Capitalization/Punctuation mistake -> Yellow/Gold color
             markedTokens.push(`<span style="color:#d97706; font-weight:bold;">${pair.scanned}</span>`);
           } else {
             markedTokens.push(pair.scanned);
@@ -393,7 +401,7 @@ creativity</textarea>
 
       const totalScore = partAScore + partBScore + partCScore;
 
-      // Output Results
+      // Update Screen
       document.getElementById('totalScore').innerText = `Total Score: ${totalScore} / 100 (+10 Extra)`;
       document.getElementById('partAScore').innerText = `${partAScore} / 40`;
       document.getElementById('partBScore').innerText = `${partBScore} / 60`;
@@ -412,7 +420,18 @@ creativity</textarea>
         errorDiv.innerHTML = '<p style="color: green; font-weight: bold;">No errors detected in Part B!</p>';
       }
 
-      let fullAnnotatedText = `Part A\n${lines.filter(l => !l.toLowerCase().includes('part')).slice(0, 8).join('\n')}\n\nPart B\n${markedPartBLines.join('\n')}\n\nPart C\n${lines.slice(lines.findIndex(l => l.toLowerCase().includes('part c')) + 1).join('\n')}`;
+      // Prepare Part A and Part C cleaned text output
+      const partALinesClean = lines
+        .filter(l => !l.toLowerCase().includes('part'))
+        .slice(0, 8)
+        .map(l => cleanArtifacts(l));
+
+      const partCIdx = lines.findIndex(l => l.toLowerCase().includes('part c'));
+      const partCLinesClean = partCIdx !== -1 
+        ? lines.slice(partCIdx + 1).map(l => cleanArtifacts(l))
+        : [];
+
+      let fullAnnotatedText = `Part A\n${partALinesClean.join('\n')}\n\nPart B\n${markedPartBLines.join('\n')}\n\nPart C\n${partCLinesClean.join('\n')}`;
 
       document.getElementById('transcriptionOutput').innerHTML = fullAnnotatedText;
       resultsCard.style.display = 'block';
