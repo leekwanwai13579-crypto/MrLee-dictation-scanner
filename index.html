@@ -329,7 +329,7 @@ creativity</textarea>
 
         alignment.forEach(pair => {
           if (!pair.scanned) {
-            // Missing word -> Blue color with brackets, NO "missing" text label
+            // Missing word -> Blue color with simple brackets [word], no "missing" text
             const masterClean = pair.master.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
             blockScore -= 4;
             sentenceErrors.push(`Sentence ${idx + 1}: Missing word "${masterClean}" (-4 Spelling)`);
@@ -377,12 +377,12 @@ creativity</textarea>
             sentenceErrors.push(`Sentence ${idx + 1}: Punctuation error after "${scannedClean}" (${punctDesc}, expected "${masterPunct}") (-1 Punctuation)`);
           }
 
-          // Format output according to specifications without adding text labels
+          // Format output color styling
           if (hasSpellingError) {
-            // Spelling mistake -> Red color
+            // Spelling mistake -> Red
             markedTokens.push(`<span style="color:#dc2626; font-weight:bold;">${pair.scanned}</span>`);
           } else if (hasCapError || hasPunctError) {
-            // Capitalization/Punctuation mistake -> Yellow/Gold color
+            // Capitalization or Punctuation mistake -> Yellow/Gold
             markedTokens.push(`<span style="color:#d97706; font-weight:bold;">${pair.scanned}</span>`);
           } else {
             markedTokens.push(pair.scanned);
@@ -420,7 +420,7 @@ creativity</textarea>
         errorDiv.innerHTML = '<p style="color: green; font-weight: bold;">No errors detected in Part B!</p>';
       }
 
-      // Prepare Part A and Part C cleaned text output
+      // Format Part A and C output
       const partALinesClean = lines
         .filter(l => !l.toLowerCase().includes('part'))
         .slice(0, 8)
