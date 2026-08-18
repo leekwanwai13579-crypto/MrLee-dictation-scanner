@@ -163,7 +163,6 @@ creativity</textarea>
       resultsCard.style.display = 'none';
 
       try {
-        // Run OCR Engine inside the browser
         const worker = await Tesseract.createWorker('eng');
         worker.setParameters({
           tessjs_create_pdf: '0',
@@ -173,7 +172,6 @@ creativity</textarea>
         const extractedText = ret.data.text;
         await worker.terminate();
 
-        // Grade extracted text using JS rule engine
         gradeDictation(extractedText);
 
       } catch (err) {
@@ -184,55 +182,117 @@ creativity</textarea>
       }
     });
 
+    // Helper function to extract punctuation from a word token
+    function getPunctuation(word) {
+      const match = word.match(/[.,\/#!$%\^&\*;:{}=\-_`~()]+/g);
+      return match ? match.join('') : '';
+    }
+
+    // Helper: Levenshtein Distance for fuzzy string matching
+    function levDistance(a, b) {
+      const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+      for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+      for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j - 1] + cost
+          );
+        }
+      }
+      return matrix[a.length][b.length];
+    }
+
     function gradeDictation(rawText) {
       const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      
-      // Part A Rules: 8 items, 5 marks each (Case-insensitive)
+
+      // Part A Logic (40 Marks)
       const partAMaster = document.getElementById('partAKey').value.split('\n').map(s => s.trim().toLowerCase());
       let partAScore = 0;
-      partAMaster.forEach((word, idx) => {
-        if (rawText.toLowerCase().includes(word) && word.length > 0) {
+      partAMaster.forEach((word) => {
+        if (word && rawText.toLowerCase().includes(word)) {
           partAScore += 5;
         }
       });
       if (partAScore > 40) partAScore = 40;
 
-      // Part C Rules: 5 items, 2 marks each (Case-insensitive)
+      // Part C Logic (10 Marks)
       const partCMaster = document.getElementById('partCKey').value.split('\n').map(s => s.trim().toLowerCase());
       let partCScore = 0;
       partCMaster.forEach((word) => {
-        if (rawText.toLowerCase().includes(word) && word.length > 0) {
+        if (word && rawText.toLowerCase().includes(word)) {
           partCScore += 2;
         }
       });
       if (partCScore > 10) partCScore = 10;
 
-      // Part B Rules: 3 Sentences (20 marks each)
-      const partBMaster = document.getElementById('partBKey').value.split('\n').map(s => s.trim());
+      // Part B Logic (3 Sentences - 20 Marks Each)
+      const partBMaster = document.getElementById('partBKey').value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
       let partBScore = 0;
       let errorDetails = [];
 
+      // Extract lines belonging to Part B
+      const partBStartIndex = lines.findIndex(l => l.toLowerCase().includes('part b'));
+      const partCStartIndex = lines.findIndex(l => l.toLowerCase().includes('part c'));
+      
+      let partBLines = [];
+      if (partBStartIndex !== -1) {
+        const endIndex = partCStartIndex !== -1 ? partCStartIndex : lines.length;
+        partBLines = lines.slice(partBStartIndex + 1, endIndex);
+      } else {
+        partBLines = lines;
+      }
+
       partBMaster.forEach((masterSentence, idx) => {
-        if (!masterSentence) return;
         let blockScore = 20;
         let sentenceErrors = [];
 
-        // Check if sentence exists in text roughly
-        const masterWords = masterSentence.split(' ');
-        let missingWords = 0;
+        // Find corresponding scanned sentence line
+        let scannedSentence = partBLines[idx] || "";
+        // Strip line numbers like "1. ", "2. "
+        scannedSentence = scannedSentence.replace(/^\d+[\.\)]\s*/, '');
 
-        masterWords.forEach(w => {
-          const cleanWord = w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
-          if (!rawText.includes(cleanWord)) {
-            missingWords++;
+        const masterTokens = masterSentence.split(/\s+/);
+        const scannedTokens = scannedSentence.split(/\s+/).filter(t => t.length > 0);
+
+        masterTokens.forEach((masterToken, wordIdx) => {
+          const masterClean = masterToken.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+          const masterPunct = getPunctuation(masterToken);
+
+          const scannedToken = scannedTokens[wordIdx] || "";
+          const scannedClean = scannedToken.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+          const scannedPunct = getPunctuation(scannedToken);
+
+          if (!scannedToken) {
+            // Missing Word -> Spelling Penalty
+            blockScore -= 4;
+            sentenceErrors.push(`Sentence ${idx + 1}: Missing word "${masterClean}" (-4 Spelling)`);
+            return;
+          }
+
+          // 1. Check Spelling (-4)
+          if (masterClean.toLowerCase() !== scannedClean.toLowerCase()) {
+            blockScore -= 4;
+            sentenceErrors.push(`Sentence ${idx + 1}: Misspelled "${scannedClean}" instead of "${masterClean}" (-4 Spelling)`);
+          } else {
+            // 2. Check Capitalization (-1)
+            if (masterClean !== scannedClean) {
+              blockScore -= 1;
+              sentenceErrors.push(`Sentence ${idx + 1}: Capitalization error on "${scannedClean}" → "${masterClean}" (-1 Capitalization)`);
+            }
+          }
+
+          // 3. Check Punctuation (-1)
+          if (masterPunct !== scannedPunct) {
+            blockScore -= 1;
+            const punctDesc = scannedPunct ? `"${scannedPunct}"` : "missing";
+            sentenceErrors.push(`Sentence ${idx + 1}: Punctuation error after "${scannedClean}" (${punctDesc}, expected "${masterPunct}") (-1 Punctuation)`);
           }
         });
-
-        if (missingWords > 0) {
-          const spellingDeduction = missingWords * 4;
-          blockScore -= spellingDeduction;
-          sentenceErrors.push(`Sentence ${idx + 1}: -${spellingDeduction} marks for missing/misspelled words.`);
-        }
 
         if (blockScore < 0) blockScore = 0;
         partBScore += blockScore;
@@ -244,7 +304,7 @@ creativity</textarea>
 
       const totalScore = partAScore + partBScore + partCScore;
 
-      // Output Results
+      // Update Screen
       document.getElementById('totalScore').innerText = `Total Score: ${totalScore} / 100 (+10 Extra)`;
       document.getElementById('partAScore').innerText = `${partAScore} / 40`;
       document.getElementById('partBScore').innerText = `${partBScore} / 60`;
@@ -260,7 +320,7 @@ creativity</textarea>
           errorDiv.appendChild(p);
         });
       } else {
-        errorDiv.innerHTML = '<p style="color: green;">No major word errors detected!</p>';
+        errorDiv.innerHTML = '<p style="color: green; font-weight: bold;">No errors detected in Part B!</p>';
       }
 
       document.getElementById('transcriptionOutput').innerText = rawText || "No readable text found.";
